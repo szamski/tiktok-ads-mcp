@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tiktok-ads-mcp"
+version = "0.1.0" 
+authors = [
+  { name = "Yu Shengnan", email = "yushengnan0525@gmail.com" },
+]
+description = "Model Context Protocol (MCP) plugin for interacting with TikTok Ads API"
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["tiktok", "ads", "mcp", "api", "marketing", "advertising"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License", 
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests>=2.32.3",
+    "python-dotenv>=1.0.0",
+    "mcp>=1.9.0",
+    "pandas>=2.2.0",
+]
+
+[project.scripts]
+tiktok-ads-mcp = "tiktok_ads_mcp.main:cli"
+
+[project.urls]
+Homepage = "https://github.com/yushengnan0525/tiktok-ads-mcp"
+Repository = "https://github.com/yushengnan0525/tiktok-ads-mcp"
+Documentation = "https://github.com/yushengnan0525/tiktok-ads-mcp#readme"
