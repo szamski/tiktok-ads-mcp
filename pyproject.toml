@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tiktok-ads-mcp"
-version = "0.1.0" 
+version = "0.1.1"
 authors = [
   { name = "Yu Shengnan", email = "yushengnan0525@gmail.com" },
 ]
@@ -28,6 +28,6 @@ dependencies = [
 tiktok-ads-mcp = "tiktok_ads_mcp.main:cli"
 
 [project.urls]
-Homepage = "https://github.com/yushengnan0525/tiktok-ads-mcp"
-Repository = "https://github.com/yushengnan0525/tiktok-ads-mcp"
-Documentation = "https://github.com/yushengnan0525/tiktok-ads-mcp#readme"
+Homepage = "https://github.com/ysntony/tiktok-ads-mcp"
+Repository = "https://github.com/ysntony/tiktok-ads-mcp"
+Documentation = "https://github.com/ysntony/tiktok-ads-mcp#readme"

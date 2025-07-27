@@ -16,9 +16,17 @@ from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 import mcp.server.stdio
 
-# TikTok client with enhanced authentication
-from .client import TikTokAdsClient, TikTokAuthenticationError, TikTokAPIError
+# TikTok client
+from .client import TikTokAdsClient
 from .config import config
+from .tools import (
+    get_business_centers,
+    get_authorized_ad_accounts,
+    get_campaigns,
+    get_ad_groups,
+    get_ads,
+    get_reports
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -31,19 +39,16 @@ tiktok_client: Optional[TikTokAdsClient] = None
 app = Server("tiktok-ads")
 
 def get_tiktok_client() -> TikTokAdsClient:
-    """Get or create TikTok API client instance with proper error handling"""
+    """Get or create TikTok API client instance"""
     global tiktok_client
     
     if tiktok_client is None:
         try:
             tiktok_client = TikTokAdsClient()
             logger.info("TikTok API client initialized successfully")
-        except TikTokAuthenticationError as e:
-            logger.error(f"Authentication error: {e}")
-            raise
         except Exception as e:
             logger.error(f"Failed to initialize TikTok client: {e}")
-            raise TikTokAPIError(f"Client initialization failed: {str(e)}")
+            raise
     
     return tiktok_client
 
@@ -52,39 +57,15 @@ def handle_error(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except TikTokAuthenticationError as e:
-            error_msg = f"Authentication Error: {str(e)}"
-            suggestion = "Please check your TIKTOK_ACCESS_TOKEN, TIKTOK_APP_ID, and TIKTOK_SECRET in your .env file."
-            return [types.TextContent(
-                type="text",
-                text=json.dumps({
-                    "error": True,
-                    "error_type": "authentication",
-                    "message": error_msg,
-                    "suggestion": suggestion
-                }, indent=2)
-            )]
-        except TikTokAPIError as e:
-            error_msg = f"API Error: {str(e)}"
-            suggestion = "This may be a temporary issue. Please try again in a few moments."
+        except Exception as e:
+            error_msg = f"Error: {str(e)}"
+            suggestion = "Please check your configuration and try again."
+            logger.exception("Error in MCP tool")
             return [types.TextContent(
                 type="text",
                 text=json.dumps({
                     "error": True,
                     "error_type": "api",
-                    "message": error_msg,
-                    "suggestion": suggestion
-                }, indent=2)
-            )]
-        except Exception as e:
-            error_msg = f"Unexpected Error: {str(e)}"
-            suggestion = "Please check your configuration and try again."
-            logger.exception("Unexpected error in MCP tool")
-            return [types.TextContent(
-                type="text",
-                text=json.dumps({
-                    "error": True,
-                    "error_type": "unexpected",
                     "message": error_msg,
                     "suggestion": suggestion
                 }, indent=2)
@@ -96,8 +77,34 @@ async def handle_list_tools() -> List[types.Tool]:
     """List available TikTok Ads tools with detailed descriptions"""
     return [
         types.Tool(
-            name="get_advertisers",
-            description="Get all advertiser accounts accessible by the current access token. No parameters required.",
+            name="get_business_centers",
+            description="Get business centers accessible by the current access token",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "bc_id": {
+                        "type": "string",
+                        "description": "Business Center ID (optional). When not passed, returns all Business Centers."
+                    },
+                    "page": {
+                        "type": "integer",
+                        "description": "Current page number",
+                        "default": 1,
+                        "minimum": 1
+                    },
+                    "page_size": {
+                        "type": "integer", 
+                        "description": "Page size (1-50)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 50
+                    }
+                }
+            }
+        ),
+        types.Tool(
+            name="get_authorized_ad_accounts",
+            description="Get all authorized ad accounts accessible by the current access token",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -121,7 +128,7 @@ async def handle_list_tools() -> List[types.Tool]:
                     },
                     "filters": {
                         "type": "object",
-                        "description": "Optional filters (campaign_ids, status, etc.)",
+                        "description": "Optional filters (campaign_ids, etc.)",
                         "default": {}
                     }
                 },
@@ -129,8 +136,8 @@ async def handle_list_tools() -> List[types.Tool]:
             }
         ),
         types.Tool(
-            name="get_insights",
-            description="Get performance insights and metrics for campaigns, ad groups, or ads",
+            name="get_ad_groups",
+            description="Get ad groups for a specific advertiser with optional filtering",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -138,87 +145,325 @@ async def handle_list_tools() -> List[types.Tool]:
                         "type": "string",
                         "description": "TikTok advertiser ID (required)"
                     },
-                    "start_date": {
+                    "campaign_id": {
                         "type": "string",
-                        "description": "Start date in YYYY-MM-DD format (required)"
+                        "description": "Campaign ID to filter by (optional)"
                     },
-                    "end_date": {
+                    "filters": {
+                        "type": "object",
+                        "description": "Optional filtering options",
+                        "properties": {
+                            "campaign_ids": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of campaign IDs to filter by"
+                            },
+                            "adgroup_ids": {
+                                "type": "array", 
+                                "items": {"type": "string"},
+                                "description": "List of ad group IDs to filter by"
+                            },
+                            "adgroup_name": {
+                                "type": "string",
+                                "description": "Ad group name to filter by"
+                            },
+                            "primary_status": {
+                                "type": "string",
+                                "description": "Primary status filter",
+                                "enum": ["STATUS_NOT_DELETE", "STATUS_ALL"]
+                            },
+                            "secondary_status": {
+                                "type": "string",
+                                "description": "Secondary status filter"
+                            },
+                            "objective_type": {
+                                "type": "string",
+                                "description": "Advertising objective filter"
+                            },
+                            "optimization_goal": {
+                                "type": "string",
+                                "description": "Optimization goal filter"
+                            },
+                            "promotion_type": {
+                                "type": "string",
+                                "description": "Promotion type filter",
+                                "enum": ["APP", "WEBSITE", "INSTANT_FORM", "LEAD_GEN_CLICK_TO_TT_DIRECT_MESSAGE", "LEAD_GEN_CLICK_TO_SOCIAL_MEDIA_APP_MESSAGE", "LEAD_GEN_CLICK_TO_CALL"]
+                            },
+                            "bid_strategy": {
+                                "type": "string",
+                                "description": "Bidding strategy filter",
+                                "enum": ["BID_STRATEGY_COST_CAP", "BID_STRATEGY_BID_CAP", "BID_STRATEGY_MAX_CONVERSION", "BID_STRATEGY_LOWEST_COST"]
+                            },
+                            "creative_material_mode": {
+                                "type": "string",
+                                "description": "Creative material mode filter",
+                                "enum": ["CUSTOM", "SMART_CREATIVE"]
+                            },
+                            "creation_filter_start_time": {
+                                "type": "string",
+                                "description": "Filter by creation start time (YYYY-MM-DD HH:MM:SS UTC)"
+                            },
+                            "creation_filter_end_time": {
+                                "type": "string", 
+                                "description": "Filter by creation end time (YYYY-MM-DD HH:MM:SS UTC)"
+                            },
+                            "split_test_enabled": {
+                                "type": "boolean",
+                                "description": "Filter by split test enabled status"
+                            }
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "description": "Current page number",
+                        "default": 1,
+                        "minimum": 1
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Page size (1-1000)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 1000
+                    }
+                },
+                "required": ["advertiser_id"]
+            }
+        ),
+        types.Tool(
+            name="get_ads",
+            description="Get ads for a specific advertiser with optional filtering",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "advertiser_id": {
                         "type": "string",
-                        "description": "End date in YYYY-MM-DD format (required)"
+                        "description": "TikTok advertiser ID (required)"
+                    },
+                    "adgroup_id": {
+                        "type": "string",
+                        "description": "Ad group ID to filter by (optional)"
+                    },
+                    "filters": {
+                        "type": "object",
+                        "description": "Optional filtering options",
+                        "properties": {
+                            "campaign_ids": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of campaign IDs to filter by"
+                            },
+                            "adgroup_ids": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of ad group IDs to filter by"
+                            },
+                            "ad_ids": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of ad IDs to filter by"
+                            },
+                            "primary_status": {
+                                "type": "string",
+                                "description": "Primary status filter"
+                            },
+                            "secondary_status": {
+                                "type": "string",
+                                "description": "Secondary status filter"
+                            },
+                            "objective_type": {
+                                "type": "string",
+                                "description": "Advertising objective filter"
+                            },
+                            "buying_types": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Buying types filter",
+                                "enum": ["AUCTION", "RESERVATION_RF", "RESERVATION_TOP_VIEW"]
+                            },
+                            "optimization_goal": {
+                                "type": "string",
+                                "description": "Optimization goal filter"
+                            },
+                            "creative_material_mode": {
+                                "type": "string",
+                                "description": "Creative material mode filter",
+                                "enum": ["CUSTOM", "DYNAMIC", "SMART_CREATIVE"]
+                            },
+                            "destination": {
+                                "type": "string",
+                                "description": "Destination page type filter",
+                                "enum": ["APP", "TIKTOK_INSTANT_PAGE", "WEBSITE", "SOCIAL_MEDIA_APP", "PHONE_CALL"]
+                            },
+                            "creation_filter_start_time": {
+                                "type": "string",
+                                "description": "Filter by creation start time (YYYY-MM-DD HH:MM:SS UTC)"
+                            },
+                            "creation_filter_end_time": {
+                                "type": "string",
+                                "description": "Filter by creation end time (YYYY-MM-DD HH:MM:SS UTC)"
+                            },
+                            "modified_after": {
+                                "type": "string",
+                                "description": "Filter by modification time (YYYY-MM-DD HH:MM:SS UTC)"
+                            }
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "description": "Current page number",
+                        "default": 1,
+                        "minimum": 1
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Page size (1-1000)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 1000
+                    }
+                },
+                "required": ["advertiser_id"]
+            }
+        ),
+        types.Tool(
+            name="get_reports",
+            description="Get performance reports and analytics with comprehensive filtering and grouping options",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "advertiser_id": {
+                        "type": "string",
+                        "description": "TikTok advertiser ID (required for non-BC reports)"
+                    },
+                    "advertiser_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of advertiser IDs (max 5, for multi-advertiser reports)"
+                    },
+                    "bc_id": {
+                        "type": "string",
+                        "description": "Business Center ID (required for BC reports)"
+                    },
+                    "report_type": {
+                        "type": "string",
+                        "description": "Report type",
+                        "enum": ["BASIC", "AUDIENCE", "PLAYABLE_MATERIAL", "CATALOG", "BC", "TT_SHOP"],
+                        "default": "BASIC"
                     },
                     "data_level": {
                         "type": "string",
-                        "description": "Data aggregation level",
-                        "enum": ["AUCTION_CAMPAIGN", "AUCTION_ADGROUP", "AUCTION_AD"],
+                        "description": "Data aggregation level (required for non-BC reports)",
+                        "enum": ["AUCTION_AD", "AUCTION_ADGROUP", "AUCTION_CAMPAIGN", "AUCTION_ADVERTISER"],
                         "default": "AUCTION_CAMPAIGN"
+                    },
+                    "dimensions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Grouping conditions (e.g., ['campaign_id', 'stat_time_day'])",
+                        "default": ["campaign_id", "stat_time_day"]
                     },
                     "metrics": {
                         "type": "array",
-                        "description": "Metrics to retrieve",
                         "items": {"type": "string"},
-                        "default": ["spend", "impressions", "clicks", "ctr", "cpm", "cpc"]
+                        "description": "Metrics to query (e.g., ['spend', 'impressions', 'clicks'])",
+                        "default": ["spend", "impressions"]
                     },
-                    "object_ids": {
+                    "start_date": {
+                        "type": "string",
+                        "description": "Query start date (YYYY-MM-DD, required when query_lifetime is false)"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Query end date (YYYY-MM-DD, required when query_lifetime is false)"
+                    },
+                    "filters": {
                         "type": "array",
-                        "description": "Optional: Specific campaign, ad group, or ad IDs to get insights for",
-                        "items": {"type": "string"},
-                        "default": []
-                    }
-                },
-                "required": ["advertiser_id", "start_date", "end_date"]
-            }
-        ),
-        types.Tool(
-            name="health_check",
-            description="Check TikTok Business API health and connectivity",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "random_string": {
+                        "description": "Filtering conditions",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "field_name": {"type": "string"},
+                                "filter_type": {
+                                    "type": "string",
+                                    "enum": ["IN", "MATCH", "GREATER_EQUAL", "GREATER_THAN", "LOWER_EQUAL", "LOWER_THAN", "BETWEEN"]
+                                },
+                                "filter_value": {"type": "string"}
+                            }
+                        }
+                    },
+                    "service_type": {
                         "type": "string",
-                        "description": "Dummy parameter for no-parameter tools",
-                        "default": ""
+                        "description": "Ad service type",
+                        "enum": ["AUCTION", "RESERVATION"],
+                        "default": "AUCTION"
+                    },
+                    "query_lifetime": {
+                        "type": "boolean",
+                        "description": "Whether to request lifetime metrics",
+                        "default": False
+                    },
+                    "enable_total_metrics": {
+                        "type": "boolean",
+                        "description": "Enable total added-up data for metrics",
+                        "default": False
+                    },
+                    "multi_adv_report_in_utc_time": {
+                        "type": "boolean",
+                        "description": "Set returned metrics in UTC timezone for multi-advertiser reports",
+                        "default": False
+                    },
+                    "order_field": {
+                        "type": "string",
+                        "description": "Sorting field"
+                    },
+                    "order_type": {
+                        "type": "string",
+                        "description": "Sorting order",
+                        "enum": ["ASC", "DESC"],
+                        "default": "DESC"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "description": "Current page number",
+                        "default": 1,
+                        "minimum": 1
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Page size (1-1000)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 1000
                     }
                 }
             }
         ),
-        types.Tool(
-            name="validate_token",
-            description="Validate TikTok API access token and return detailed information about accessible accounts",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "random_string": {
-                        "type": "string",
-                        "description": "Dummy parameter for no-parameter tools",
-                        "default": ""
-                    }
-                }
-            }
-        ),
-        types.Tool(
-            name="get_auth_info",
-            description="Get comprehensive authentication and configuration status information",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "random_string": {
-                        "type": "string",
-                        "description": "Dummy parameter for no-parameter tools",
-                        "default": ""
-                    }
-                }
-            }
-        )
+
     ]
 
 # Tool implementations
 
 @handle_error
-def get_advertisers_impl(random_string: str = "") -> List[types.TextContent]:
-    """Get all advertiser accounts"""
+def get_business_centers_impl(bc_id: str = "", page: int = 1, page_size: int = 10) -> List[types.TextContent]:
+    """Get business centers"""
     client = get_tiktok_client()
-    advertisers = client.get_advertisers()
+    centers = get_business_centers(client, bc_id=bc_id, page=page, page_size=page_size)
+    
+    return [types.TextContent(
+        type="text",
+        text=json.dumps({
+            "success": True,
+            "count": len(centers),
+            "centers": centers
+        }, indent=2)
+    )]
+
+@handle_error
+def get_authorized_ad_accounts_impl(random_string: str = "") -> List[types.TextContent]:
+    """Get all authorized ad accounts"""
+    client = get_tiktok_client()
+    advertisers = get_authorized_ad_accounts(client)
     
     return [types.TextContent(
         type="text",
@@ -236,7 +481,7 @@ def get_campaigns_impl(advertiser_id: str, filters: Dict = None) -> List[types.T
         raise ValueError("advertiser_id is required")
     
     client = get_tiktok_client()
-    campaigns = client.get_campaigns(advertiser_id, filters or {})
+    campaigns = get_campaigns(client, advertiser_id=advertiser_id, filters=filters or {})
     
     return [types.TextContent(
         type="text",
@@ -249,94 +494,95 @@ def get_campaigns_impl(advertiser_id: str, filters: Dict = None) -> List[types.T
     )]
 
 @handle_error
-def get_insights_impl(advertiser_id: str, start_date: str, end_date: str,
-                     data_level: str = "AUCTION_CAMPAIGN", 
-                     metrics: List[str] = None, 
-                     object_ids: List[str] = None) -> List[types.TextContent]:
-    """Get performance insights"""
-    if not all([advertiser_id, start_date, end_date]):
-        raise ValueError("advertiser_id, start_date, and end_date are required")
+def get_ad_groups_impl(advertiser_id: str, campaign_id: str = None, filters: Dict = None, page: int = 1, page_size: int = 10) -> List[types.TextContent]:
+    """Get ad groups for a specific advertiser"""
+    if not advertiser_id:
+        raise ValueError("advertiser_id is required")
     
     client = get_tiktok_client()
-    insights = client.get_insights(
-        advertiser_id=advertiser_id,
-        start_date=start_date,
-        end_date=end_date,
-        data_level=data_level,
-        metrics=metrics,
-        object_ids=object_ids
-    )
+    ad_groups = get_ad_groups(client, advertiser_id=advertiser_id, campaign_id=campaign_id, filters=filters or {})
     
     return [types.TextContent(
         type="text",
         text=json.dumps({
             "success": True,
             "advertiser_id": advertiser_id,
-            "date_range": f"{start_date} to {end_date}",
-            "data_level": data_level,
-            "metrics": metrics or ["spend", "impressions", "clicks", "ctr", "cpm", "cpc"],
-            "count": len(insights),
-            "insights": insights
+            "campaign_id": campaign_id,
+            "count": len(ad_groups),
+            "ad_groups": ad_groups
         }, indent=2)
     )]
 
 @handle_error
-def health_check_impl(random_string: str = "") -> List[types.TextContent]:
-    """Check API health and connectivity"""
-    try:
-        client = get_tiktok_client()
-        is_healthy = client.health_check()
-        
-        return [types.TextContent(
-            type="text",
-            text=json.dumps({
-                "success": True,
-                "healthy": is_healthy,
-                "message": "API is accessible" if is_healthy else "API connection failed",
-                "timestamp": json.dumps({"timestamp": "now"}, default=str)
-            }, indent=2)
-        )]
-    except Exception as e:
-        return [types.TextContent(
-            type="text",
-            text=json.dumps({
-                "success": False,
-                "healthy": False,
-                "message": f"Health check failed: {str(e)}"
-            }, indent=2)
-        )]
-
-@handle_error
-def validate_token_impl(random_string: str = "") -> List[types.TextContent]:
-    """Validate access token and return detailed information"""
+def get_ads_impl(advertiser_id: str, adgroup_id: str = None, filters: Dict = None, page: int = 1, page_size: int = 10) -> List[types.TextContent]:
+    """Get ads for a specific advertiser"""
+    if not advertiser_id:
+        raise ValueError("advertiser_id is required")
+    
     client = get_tiktok_client()
-    validation_result = client.validate_token()
+    ads = get_ads(client, advertiser_id=advertiser_id, adgroup_id=adgroup_id, filters=filters or {})
     
     return [types.TextContent(
         type="text",
         text=json.dumps({
             "success": True,
-            "validation": validation_result
+            "advertiser_id": advertiser_id,
+            "adgroup_id": adgroup_id,
+            "count": len(ads),
+            "ads": ads
         }, indent=2)
     )]
 
 @handle_error
-def get_auth_info_impl(random_string: str = "") -> List[types.TextContent]:
-    """Get authentication and configuration status"""
-    auth_info = config.get_auth_info()
-    health_info = config.get_health_info()
+def get_reports_impl(advertiser_id: str = None, advertiser_ids: List[str] = None, bc_id: str = None,
+                     report_type: str = "BASIC", data_level: str = "AUCTION_CAMPAIGN",
+                     dimensions: List[str] = None, metrics: List[str] = None,
+                     start_date: str = None, end_date: str = None, filters: List[Dict] = None,
+                     page: int = 1, page_size: int = 10, service_type: str = "AUCTION",
+                     query_lifetime: bool = False, enable_total_metrics: bool = False,
+                     multi_adv_report_in_utc_time: bool = False, order_field: str = None,
+                     order_type: str = "DESC") -> List[types.TextContent]:
+    """Get performance reports"""
     
-    combined_info = {
-        "success": True,
-        "authentication": auth_info,
-        "system_health": health_info,
-        "server_version": "2.0.0"
-    }
+    client = get_tiktok_client()
+    reports = get_reports(
+        client,
+        advertiser_id=advertiser_id,
+        advertiser_ids=advertiser_ids,
+        bc_id=bc_id,
+        report_type=report_type,
+        data_level=data_level,
+        dimensions=dimensions or ["campaign_id", "stat_time_day"],
+        metrics=metrics or ["spend", "impressions"],
+        start_date=start_date,
+        end_date=end_date,
+        filters=filters,
+        page=page,
+        page_size=page_size,
+        service_type=service_type,
+        query_lifetime=query_lifetime,
+        enable_total_metrics=enable_total_metrics,
+        multi_adv_report_in_utc_time=multi_adv_report_in_utc_time,
+        order_field=order_field,
+        order_type=order_type
+    )
     
     return [types.TextContent(
         type="text",
-        text=json.dumps(combined_info, indent=2)
+        text=json.dumps({
+            "success": True,
+            "report_type": report_type,
+            "data_level": data_level,
+            "total_metrics": reports.get("total_metrics"),
+            "page_info": reports.get("page_info", {}),
+            "count": len(reports.get("list", [])),
+            "reports": reports.get("list", [])
+        }, indent=2)
     )]
+
+
+
+
 
 @app.call_tool()
 async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[types.TextContent]:
@@ -345,43 +591,79 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[types.T
     logger.info(f"Tool called: {name} with arguments: {arguments}")
     
     # Dispatch to appropriate function
-    if name == "get_advertisers":
+    if name == "get_business_centers":
+        bc_id = arguments.get("bc_id", "")
+        page = arguments.get("page", 1)
+        page_size = arguments.get("page_size", 10)
+        return get_business_centers_impl(bc_id=bc_id, page=page, page_size=page_size)
+        
+    elif name == "get_authorized_ad_accounts":
         random_string = arguments.get("random_string", "")
-        return get_advertisers_impl(random_string=random_string)
+        return get_authorized_ad_accounts_impl(random_string=random_string)
         
     elif name == "get_campaigns":
         advertiser_id = arguments.get("advertiser_id")
         filters = arguments.get("filters", {})
         return get_campaigns_impl(advertiser_id=advertiser_id, filters=filters)
         
-    elif name == "get_insights":
+    elif name == "get_ad_groups":
         advertiser_id = arguments.get("advertiser_id")
+        campaign_id = arguments.get("campaign_id")
+        filters = arguments.get("filters", {})
+        page = arguments.get("page", 1)
+        page_size = arguments.get("page_size", 10)
+        return get_ad_groups_impl(advertiser_id=advertiser_id, campaign_id=campaign_id, filters=filters, page=page, page_size=page_size)
+        
+    elif name == "get_ads":
+        advertiser_id = arguments.get("advertiser_id")
+        adgroup_id = arguments.get("adgroup_id")
+        filters = arguments.get("filters", {})
+        page = arguments.get("page", 1)
+        page_size = arguments.get("page_size", 10)
+        return get_ads_impl(advertiser_id=advertiser_id, adgroup_id=adgroup_id, filters=filters, page=page, page_size=page_size)
+        
+    elif name == "get_reports":
+        advertiser_id = arguments.get("advertiser_id")
+        advertiser_ids = arguments.get("advertiser_ids", [])
+        bc_id = arguments.get("bc_id")
+        report_type = arguments.get("report_type", "BASIC")
+        data_level = arguments.get("data_level", "AUCTION_CAMPAIGN")
+        dimensions = arguments.get("dimensions", ["campaign_id", "stat_time_day"])
+        metrics = arguments.get("metrics", ["spend", "impressions"])
         start_date = arguments.get("start_date")
         end_date = arguments.get("end_date")
-        data_level = arguments.get("data_level", "AUCTION_CAMPAIGN")
-        metrics = arguments.get("metrics", ["spend", "impressions", "clicks", "ctr", "cpm", "cpc"])
-        object_ids = arguments.get("object_ids", [])
+        filters = arguments.get("filters", [])
+        page = arguments.get("page", 1)
+        page_size = arguments.get("page_size", 10)
+        service_type = arguments.get("service_type", "AUCTION")
+        query_lifetime = arguments.get("query_lifetime", False)
+        enable_total_metrics = arguments.get("enable_total_metrics", False)
+        multi_adv_report_in_utc_time = arguments.get("multi_adv_report_in_utc_time", False)
+        order_field = arguments.get("order_field")
+        order_type = arguments.get("order_type", "DESC")
         
-        return get_insights_impl(
+        return get_reports_impl(
             advertiser_id=advertiser_id,
+            advertiser_ids=advertiser_ids,
+            bc_id=bc_id,
+            report_type=report_type,
+            data_level=data_level,
+            dimensions=dimensions,
+            metrics=metrics,
             start_date=start_date,
             end_date=end_date,
-            data_level=data_level,
-            metrics=metrics,
-            object_ids=object_ids
+            filters=filters,
+            page=page,
+            page_size=page_size,
+            service_type=service_type,
+            query_lifetime=query_lifetime,
+            enable_total_metrics=enable_total_metrics,
+            multi_adv_report_in_utc_time=multi_adv_report_in_utc_time,
+            order_field=order_field,
+            order_type=order_type
         )
         
-    elif name == "health_check":
-        random_string = arguments.get("random_string", "")
-        return health_check_impl(random_string=random_string)
-        
-    elif name == "validate_token":
-        random_string = arguments.get("random_string", "")
-        return validate_token_impl(random_string=random_string)
-        
-    elif name == "get_auth_info":
-        random_string = arguments.get("random_string", "")
-        return get_auth_info_impl(random_string=random_string)
+
     
     else:
         return [types.TextContent(
@@ -389,7 +671,7 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[types.T
             text=json.dumps({
                 "error": True,
                 "message": f"Unknown tool: {name}",
-                "available_tools": ["get_advertisers", "get_campaigns", "get_insights", "health_check", "validate_token", "get_auth_info"]
+                "available_tools": ["get_business_centers", "get_authorized_ad_accounts", "get_campaigns", "get_ad_groups", "get_ads", "get_reports"]
             }, indent=2)
         )]
 
@@ -399,13 +681,12 @@ async def main():
     
     # Log configuration status
     try:
-        auth_info = config.get_auth_info()
-        logger.info(f"Configuration status: {auth_info}")
-        
-        if not auth_info.get("has_credentials"):
+        if not config.validate_credentials():
             logger.warning("Missing credentials detected. Server will start but API calls will fail.")
-            missing = auth_info.get("missing_credentials", [])
+            missing = config.get_missing_credentials()
             logger.warning(f"Missing: {', '.join(missing)}")
+        else:
+            logger.info("Configuration validated successfully")
     except Exception as e:
         logger.error(f"Failed to check configuration: {e}")
     

@@ -3,7 +3,7 @@
 A pure MCP (Model Context Protocol) server for TikTok Business API integration.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "TikTok Ads MCP Team"
 
 from .server import app, main
