@@ -175,7 +175,7 @@ async def handle_list_tools() -> List[types.Tool]:
                             "secondary_status": {
                                 "type": "string",
                                 "description": "Secondary status filter"
-                            },
+                    },
                             "objective_type": {
                                 "type": "string",
                                 "description": "Advertising objective filter"
@@ -200,13 +200,13 @@ async def handle_list_tools() -> List[types.Tool]:
                                 "enum": ["CUSTOM", "SMART_CREATIVE"]
                             },
                             "creation_filter_start_time": {
-                                "type": "string",
+                        "type": "string",
                                 "description": "Filter by creation start time (YYYY-MM-DD HH:MM:SS UTC)"
-                            },
+                    },
                             "creation_filter_end_time": {
-                                "type": "string", 
+                        "type": "string",
                                 "description": "Filter by creation end time (YYYY-MM-DD HH:MM:SS UTC)"
-                            },
+                    },
                             "split_test_enabled": {
                                 "type": "boolean",
                                 "description": "Filter by split test enabled status"
@@ -389,8 +389,8 @@ async def handle_list_tools() -> List[types.Tool]:
                                     "enum": ["IN", "MATCH", "GREATER_EQUAL", "GREATER_THAN", "LOWER_EQUAL", "LOWER_THAN", "BETWEEN"]
                                 },
                                 "filter_value": {"type": "string"}
-                            }
-                        }
+                }
+            }
                     },
                     "service_type": {
                         "type": "string",
@@ -521,7 +521,6 @@ def get_ads_impl(advertiser_id: str, adgroup_id: str = None, filters: Dict = Non
     
     client = get_tiktok_client()
     ads = get_ads(client, advertiser_id=advertiser_id, adgroup_id=adgroup_id, filters=filters or {})
-    
     return [types.TextContent(
         type="text",
         text=json.dumps({
@@ -530,8 +529,8 @@ def get_ads_impl(advertiser_id: str, adgroup_id: str = None, filters: Dict = Non
             "adgroup_id": adgroup_id,
             "count": len(ads),
             "ads": ads
-        }, indent=2)
-    )]
+            }, indent=2)
+        )]
 
 @handle_error
 def get_reports_impl(advertiser_id: str = None, advertiser_ids: List[str] = None, bc_id: str = None,

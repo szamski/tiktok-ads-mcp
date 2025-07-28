@@ -10,12 +10,17 @@ authors = [
 ]
 description = "Model Context Protocol (MCP) plugin for interacting with TikTok Ads API"
 readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.8"
-keywords = ["tiktok", "ads", "mcp", "api", "marketing", "advertising"]
+keywords = ["tiktok", "ads", "mcp", "api", "marketing", "advertising", "model-context-protocol"]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License", 
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
 ]
 dependencies = [
     "requests>=2.32.3",
@@ -31,3 +36,28 @@ tiktok-ads-mcp = "tiktok_ads_mcp.main:cli"
 Homepage = "https://github.com/ysntony/tiktok-ads-mcp"
 Repository = "https://github.com/ysntony/tiktok-ads-mcp"
 Documentation = "https://github.com/ysntony/tiktok-ads-mcp#readme"
+"Bug Tracker" = "https://github.com/ysntony/tiktok-ads-mcp/issues"
+"Changelog" = "https://github.com/ysntony/tiktok-ads-mcp/blob/main/README.md#changelog"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "twine>=4.0.0",
+    "build>=1.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["tiktok_ads_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/tiktok_ads_mcp",
+    "/README.md",
+    "/LICENSE",
+    "/MCP_USAGE.md",
+    "/pyproject.toml",
+]
