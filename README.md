@@ -1,6 +1,6 @@
 # TikTok Ads MCP
 
-A comprehensive Model Context Protocol (MCP) server for interacting with the TikTok Business API. This package provides a complete interface to manage TikTok advertising campaigns, ad groups, ads, and generate detailed performance reports.
+A comprehensive Model Context Protocol (MCP) server for interacting with the TikTok Business API. This package provides a complete interface to access TikTok advertising campaigns, ad groups, ads, and generate detailed performance reports.
 
 ## Features
 
@@ -22,17 +22,19 @@ A comprehensive Model Context Protocol (MCP) server for interacting with the Tik
 5. **get_ads** - Retrieve ads with detailed creative and performance data
 6. **get_reports** - Generate comprehensive performance reports and analytics
 
+## Prerequisites
+
+- Python 3.8 or higher
+- TikTok Business API access
+- Valid API credentials (app ID, secret, access token)
+
 ## Quick Start
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/ysntony/tiktok-ads-mcp.git
-cd tiktok-ads-mcp
-
-# Install in development mode
-pip install -e .
+# Install the latest version from PyPI
+pip install tiktok-ads-mcp
 ```
 
 ### Configuration
@@ -43,14 +45,12 @@ pip install -e .
 {
   "mcpServers": {
     "tiktok-ads": {
-      "command": "/path/to/your/python",
+      "command": "python",
       "args": ["-m", "tiktok_ads_mcp"],
-      "cwd": "/path/to/tiktok-ads-mcp",
       "env": {
         "TIKTOK_APP_ID": "your_app_id",
         "TIKTOK_SECRET": "your_secret",
-        "TIKTOK_ACCESS_TOKEN": "your_access_token",
-        "TIKTOK_ADVERTISER_ID": "your_advertiser_id"
+        "TIKTOK_ACCESS_TOKEN": "your_access_token"
       }
     }
   }
@@ -61,34 +61,17 @@ pip install -e .
    - `TIKTOK_APP_ID`: Your TikTok app ID
    - `TIKTOK_SECRET`: Your TikTok app secret
    - `TIKTOK_ACCESS_TOKEN`: Your access token
-   - `TIKTOK_ADVERTISER_ID`: Your advertiser ID (optional)
 
 ### Usage
 
 Once configured, you can use the MCP tools through your MCP client (like Cursor, Claude Desktop, etc.):
 
-- Get business centers and advertiser accounts
-- Retrieve campaigns, ad groups, and ads with filtering
-- Generate detailed performance reports
-- Access real-time advertising data
-
-## Project Structure
-
-```
-tiktok_ads_mcp/
-├── client.py              # Core API client
-├── config.py              # Configuration management
-├── server.py              # MCP server implementation
-├── tools/                 # Individual tool implementations
-│   ├── __init__.py
-│   ├── get_business_centers.py
-│   ├── get_authorized_ad_accounts.py
-│   ├── get_campaigns.py
-│   ├── get_ad_groups.py
-│   ├── get_ads.py
-│   └── reports.py
-└── __main__.py            # Entry point for module execution
-```
+- **Get business centers and advertiser accounts** to discover available accounts
+- **Retrieve campaigns** with filtering by status, objective, or date range
+- **Access ad groups** with advanced targeting and optimization settings
+- **View ads** with detailed creative and performance data
+- **Generate reports** with custom dimensions, metrics, and time ranges
+- **Access real-time advertising data** and performance metrics
 
 ## API Coverage
 
@@ -147,32 +130,6 @@ All tools support comprehensive filtering options:
 - Graceful handling of API limitations
 - Rate limiting and retry logic
 
-## Development
-
-### Prerequisites
-- Python 3.8+
-- TikTok Business API access
-- Valid API credentials
-
-### Local Development
-```bash
-# Install development dependencies
-python setup_dev.py
-
-# Run tests
-python -m pytest tests/
-
-# Test MCP server
-python test_mcp_server.py
-```
-
-### Adding New Tools
-1. Create new tool file in `tiktok_ads_mcp/tools/`
-2. Add function signature and implementation
-3. Update `tools/__init__.py`
-4. Add tool definition in `server.py`
-5. Test the implementation
-
 ## Documentation
 
 - **MCP_USAGE.md**: Comprehensive usage guide with examples
@@ -195,7 +152,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For issues and questions:
 1. Check the [MCP_USAGE.md](MCP_USAGE.md) documentation
-2. Review the [TikTok Business API documentation](https://developers.tiktok.com/doc/login-kit-web)
+2. Review the [TikTok Business API documentation](https://developers.tiktok.com/doc/tiktok-business-api)
 3. Open an issue on the GitHub repository
 4. Contact the development team
 
@@ -213,7 +170,3 @@ For issues and questions:
 - Initial release with basic MCP server structure
 - Core API client implementation
 - Basic authentication and configuration
-
----
-
-*Built with ❤️ for the growth marketing community*
