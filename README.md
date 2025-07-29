@@ -4,7 +4,7 @@ A comprehensive Model Context Protocol (MCP) server for interacting with the Tik
 
 ## Features
 
-- **Complete TikTok Business API Integration**: Access all major TikTok advertising endpoints
+- **Read-Only TikTok Business API Integration**: Access all major TikTok advertising endpoints for data retrieval
 - **6 Comprehensive Tools**: Business centers, ad accounts, campaigns, ad groups, ads, and reports
 - **Advanced Filtering**: Powerful filtering options for all data retrieval operations
 - **Multi-Advertiser Support**: Handle multiple advertiser accounts in a single request
@@ -12,6 +12,7 @@ A comprehensive Model Context Protocol (MCP) server for interacting with the Tik
 - **Real-time Data**: Access live advertising data and performance metrics
 - **Error Handling**: Comprehensive error handling and validation
 - **Modular Architecture**: Clean, maintainable code structure
+- **Safe Operations**: All tools are read-only and will not modify your campaigns or ad data
 
 ## Available Tools
 
@@ -75,26 +76,26 @@ Once configured, you can use the MCP tools through your MCP client (like Cursor,
 
 ## API Coverage
 
-This MCP server provides comprehensive coverage of the TikTok Business API:
+This MCP server provides **read-only** access to the TikTok Business API:
 
 ### Business Management
-- Business center retrieval and management
-- Advertiser account access and permissions
+- Business center retrieval and access
+- Advertiser account information and permissions
 
 ### Campaign Management
-- Campaign creation, retrieval, and filtering
+- Campaign retrieval and filtering
 - Campaign status and performance monitoring
-- Budget and objective management
+- Campaign budget and objective information
 
 ### Ad Group Management
-- Ad group creation and retrieval
+- Ad group retrieval and filtering
 - Advanced targeting and optimization settings
-- Performance monitoring and filtering
+- Performance monitoring and analysis
 
 ### Ad Management
-- Ad creation and retrieval
-- Creative asset management
-- Performance tracking and optimization
+- Ad retrieval and filtering
+- Creative asset information
+- Performance tracking and analysis
 
 ### Reporting & Analytics
 - Basic performance reports
@@ -112,6 +113,15 @@ All tools support comprehensive filtering options:
 - Time-based filtering (creation date, modification date)
 - Performance-based filtering (budget, optimization goals)
 - Creative filtering (ad formats, material types)
+
+### Modern Implementation
+This package uses the official FastMCP framework for optimal performance and developer experience:
+
+- **Automatic Schema Generation**: From Python type hints
+- **Simplified Tool Registration**: Using `@app.tool()` decorators
+- **Built-in Error Handling**: Consistent error responses
+- **Type Safety**: Full parameter validation from type hints
+- **Future-Proof**: Part of the official MCP SDK
 
 ### Multi-Advertiser Support
 - Handle multiple advertiser accounts in single requests
@@ -158,7 +168,16 @@ For issues and questions:
 
 ## Changelog
 
-### v0.1.1 (Current)
+### v0.1.2 (Current)
+- **FastMCP Implementation**: Modern MCP server using official FastMCP framework
+- **70% Code Reduction**: Compared to traditional MCP implementations
+- **Automatic Schema Generation**: From Python type hints
+- **Simplified Tool Registration**: Using `@app.tool()` decorators
+- **Enhanced Error Handling**: Built-in error handling with consistent responses
+- **Type Safety**: Full parameter validation from type hints
+- **Future-Proof**: Part of the official MCP SDK
+
+### v0.1.1
 - Complete implementation of all 6 tools
 - Advanced filtering and reporting capabilities
 - Multi-advertiser support

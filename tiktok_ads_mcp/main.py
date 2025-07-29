@@ -1,24 +1,24 @@
+#!/usr/bin/env python3
+"""CLI entry point for TikTok Ads FastMCP Server"""
+
 import asyncio
 import sys
-from .server import main as run_server # Import the main function from server.py
+from .server import main as run_server
 
 def cli():
     """
-    This is the command-line entry point defined in pyproject.toml.
-    It simply calls the main async function from the server module.
+    This is the command-line entry point for the TikTok Ads MCP server.
+    It simply calls the main function from the server module.
     """
-    print("Starting TikTok Ads MCP via CLI entry point...")
+    print("Starting TikTok Ads MCP Server via CLI entry point...")
     try:
-        # Check if an event loop is running, which is common in some environments
-        if sys.version_info >= (3, 7):
-            asyncio.run(run_server())
-        else:
-            # Fallback for older python versions if necessary
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(run_server())
+        run_server()
     except KeyboardInterrupt:
         print("\nServer shut down by user.")
         sys.exit(0)
+    except Exception as e:
+        print(f"Server failed to start: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    cli()
+    cli() 
