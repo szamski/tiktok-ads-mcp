@@ -44,24 +44,45 @@ logger = logging.getLogger(__name__)
 # Keep-alive mechanism to prevent Render sleep
 async def keep_alive_task():
     """Background task to keep the server alive"""
+    logger.info("Keep-alive task started")
     while True:
         try:
-            await asyncio.sleep(600)  # Wait 10 minutes
-            logger.info("Keep-alive ping")
+            await asyncio.sleep(300)  # Wait 5 minutes instead of 10
+            # Self-ping to keep the service active
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.get("https://tiktok-ads-mcp.onrender.com/wake")
+                    logger.info(f"Keep-alive ping successful: {response.status_code}")
+            except Exception as ping_error:
+                logger.warning(f"Keep-alive ping failed: {ping_error}")
+            
+            logger.info("Keep-alive ping - server still running")
+        except asyncio.CancelledError:
+            logger.info("Keep-alive task cancelled")
+            break
         except Exception as e:
             logger.error(f"Keep-alive error: {e}")
+            await asyncio.sleep(60)  # Wait 1 minute before retry
 
 # Lifespan context manager for startup/shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
-    task = asyncio.create_task(keep_alive_task())
-    logger.info("TikTok Ads MCP Server started with keep-alive")
-    yield
-    # Shutdown
-    task.cancel()
-    logger.info("TikTok Ads MCP Server shutting down")
+    keep_alive_task_handle = None
+    try:
+        keep_alive_task_handle = asyncio.create_task(keep_alive_task())
+        logger.info("TikTok Ads MCP Server started with keep-alive")
+        yield
+    finally:
+        # Shutdown
+        if keep_alive_task_handle:
+            keep_alive_task_handle.cancel()
+            try:
+                await keep_alive_task_handle
+            except asyncio.CancelledError:
+                pass
+        logger.info("TikTok Ads MCP Server shutting down")
 
 # FastAPI app
 app = FastAPI(

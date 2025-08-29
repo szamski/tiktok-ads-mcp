@@ -19,7 +19,7 @@ services:
       - key: HOST
         value: "0.0.0.0"
       - key: WORKERS
-        value: "2"
+        value: "1"
       - key: LOG_LEVEL
         value: "info"
       # TikTok API credentials - set these as secrets in Render dashboard
