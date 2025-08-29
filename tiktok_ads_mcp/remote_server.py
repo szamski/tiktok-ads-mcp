@@ -288,6 +288,22 @@ async def handle_mcp_request(request: MCPRequest):
             }
         )
 
+# Individual MCP endpoints for direct access
+@app.get("/mcp/tools/list")
+async def list_tools():
+    """List available tools endpoint"""
+    return {
+        "jsonrpc": "2.0",
+        "result": {
+            "tools": [tool.dict() for tool in MCP_TOOLS]
+        }
+    }
+
+@app.post("/mcp/tools/call")
+async def call_tool(request: MCPRequest):
+    """Call tool endpoint"""
+    return await handle_tool_call(request)
+
 async def handle_tool_call(request: MCPRequest) -> MCPResponse:
     """Handle MCP tool call requests"""
     params = request.params or {}
@@ -295,6 +311,28 @@ async def handle_tool_call(request: MCPRequest) -> MCPResponse:
     arguments = params.get("arguments", {})
     
     try:
+        # Check if TikTok credentials are configured
+        from .config import config
+        if not config.validate_credentials():
+            missing = config.get_missing_credentials()
+            return MCPResponse(
+                id=request.id,
+                result={
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps({
+                                "error": True,
+                                "tool": tool_name,
+                                "message": f"TikTok API credentials not configured. Missing: {', '.join(missing)}",
+                                "suggestion": "Please set the required environment variables: TIKTOK_APP_ID, TIKTOK_SECRET, TIKTOK_ACCESS_TOKEN"
+                            }, indent=2)
+                        }
+                    ],
+                    "isError": True
+                }
+            )
+        
         client = get_tiktok_client()
         
         if tool_name == "get_business_centers":
