@@ -1,0 +1,1 @@
+web: python -m tiktok_ads_mcp.remote_main --host 0.0.0.0 --port $PORT

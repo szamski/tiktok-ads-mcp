@@ -1,0 +1,29 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[[deploy.healthcheckPath]]
+path = "/health"
+
+[[deploy.environmentVariables]]
+name = "PORT"
+value = "${{ PORT }}"
+
+[[deploy.environmentVariables]]
+name = "HOST"
+value = "0.0.0.0"
+
+[[deploy.environmentVariables]]
+name = "TIKTOK_APP_ID"
+value = "${{ TIKTOK_APP_ID }}"
+
+[[deploy.environmentVariables]]
+name = "TIKTOK_SECRET"
+value = "${{ TIKTOK_SECRET }}"
+
+[[deploy.environmentVariables]]
+name = "TIKTOK_ACCESS_TOKEN"
+value = "${{ TIKTOK_ACCESS_TOKEN }}"
