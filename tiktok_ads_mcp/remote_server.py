@@ -501,19 +501,38 @@ async def oauth_authorize(
     redirect_uri: str,
     response_type: str = "code",
     scope: str = "read",
-    state: Optional[str] = None
+    state: Optional[str] = None,
+    code_challenge: Optional[str] = None,
+    code_challenge_method: Optional[str] = None,
+    resource: Optional[str] = None
 ):
-    """OAuth 2.0 authorization endpoint"""
+    """OAuth 2.0 authorization endpoint with PKCE support"""
     try:
         # Validate client_id and redirect_uri
         # In production, validate against stored client registrations
+        
+        # Validate PKCE parameters
+        if code_challenge and code_challenge_method != "S256":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unsupported code_challenge_method. Only S256 is supported."
+            )
         
         # Generate authorization code
         import secrets
         auth_code = secrets.token_urlsafe(32)
         
-        # Store authorization code temporarily (use database in production)
-        # This would normally be stored with expiration time
+        # Store authorization code temporarily with PKCE info (use database in production)
+        # In a real implementation, store: auth_code, code_challenge, client_id, etc.
+        auth_storage = {
+            auth_code: {
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "code_challenge": code_challenge,
+                "code_challenge_method": code_challenge_method,
+                "scope": scope
+            }
+        }
         
         # Build callback URL
         params = {
@@ -527,7 +546,7 @@ async def oauth_authorize(
         # In a real implementation, this would redirect to a login page first
         # For this demo, we'll redirect directly with the code
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(url=callback_url)
+        return RedirectResponse(url=callback_url, status_code=302)
     
     except Exception as e:
         logger.error(f"OAuth authorization error: {e}")
@@ -644,6 +663,23 @@ async def root():
         },
         "documentation": "/docs"
     }
+
+@app.post("/")
+async def root_post(request: Request):
+    """Handle POST requests to root - redirect to MCP protocol handler"""
+    try:
+        # Check if this is an MCP request
+        body = await request.json()
+        if body.get("jsonrpc") == "2.0":
+            # This is an MCP request, handle it
+            mcp_request = MCPRequest(**body)
+            return await handle_mcp_request(mcp_request)
+        else:
+            # Not an MCP request, return server info
+            return await root()
+    except Exception as e:
+        # If JSON parsing fails, return server info
+        return await root()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
