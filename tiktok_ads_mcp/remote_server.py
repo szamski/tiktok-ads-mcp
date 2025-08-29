@@ -5,6 +5,7 @@ A FastAPI-based remote MCP server implementation that provides Claude Connector 
 Supports both HTTP and SSE transports with OAuth 2.0 authentication and Dynamic Client Registration.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -18,7 +19,7 @@ from authlib.oauth2 import OAuth2Error
 from authlib.oauth2.client import OAuth2Client
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -61,6 +62,23 @@ app.add_middleware(
 
 # Global client instance
 tiktok_client: Optional[TikTokAdsClient] = None
+
+# Keep-alive mechanism to prevent Render sleep
+async def keep_alive_task():
+    """Background task to keep the server alive"""
+    while True:
+        try:
+            await asyncio.sleep(600)  # Wait 10 minutes
+            logger.info("Keep-alive ping")
+        except Exception as e:
+            logger.error(f"Keep-alive error: {e}")
+
+# Start keep-alive task
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on startup"""
+    asyncio.create_task(keep_alive_task())
+    logger.info("TikTok Ads MCP Server started with keep-alive")
 
 # OAuth configuration
 OAUTH_CONFIG = {
@@ -709,6 +727,24 @@ async def oauth_token(request: Request):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "tiktok-ads-mcp",
+        "version": "0.2.0",
+        "uptime": "ready"
+    }
+
+# Wake-up endpoint for faster cold starts
+@app.get("/wake")
+async def wake_up():
+    """Fast wake-up endpoint"""
+    return {"status": "awake", "timestamp": datetime.utcnow().isoformat()}
+
+# Detailed health check with TikTok API test
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """Detailed health check with TikTok API test"""
     try:
         # Test TikTok API connection
         client = get_tiktok_client()
@@ -716,16 +752,18 @@ async def health_check():
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
             "service": "tiktok-ads-mcp",
-            "version": "0.2.0"
+            "version": "0.2.0",
+            "tiktok_api": "connected"
         }
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        logger.error(f"Detailed health check failed: {e}")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "unhealthy",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
+                "tiktok_api": "failed"
             }
         )
 
