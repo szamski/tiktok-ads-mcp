@@ -212,32 +212,40 @@ async def mcp_server_info(request: Request):
     base_url = str(request.url).replace(str(request.url.path), "").rstrip('/')
     
     return {
-        "name": "tiktok-ads-mcp",
-        "version": "0.2.0", 
-        "description": "Remote MCP server for TikTok Business API integration",
-        "author": "TikTok Ads MCP Team",
-        "homepage": "https://github.com/szamski/tiktok-ads-mcp",
+        "protocolVersion": "2024-11-05",
+        "implementation": {
+            "name": "tiktok-ads-mcp",
+            "version": "0.2.0"
+        },
+        "serverInfo": {
+            "name": "tiktok-ads-mcp", 
+            "version": "0.2.0",
+            "description": "Remote MCP server for TikTok Business API integration",
+            "author": "TikTok Ads MCP Team",
+            "homepage": "https://github.com/szamski/tiktok-ads-mcp"
+        },
         "capabilities": {
-            "tools": True,
-            "prompts": False,
-            "resources": False,
-            "logging": True
+            "tools": {
+                "listChanged": True
+            },
+            "logging": {}
         },
         "transport": {
             "type": "http",
             "base_url": base_url,
             "endpoints": {
-                "mcp": "/",
-                "initialize": "/",
-                "tools/list": "/",  
-                "tools/call": "/"
+                "jsonrpc": "/"
             }
         },
         "authentication": {
             "type": "oauth2",
-            "authorization_url": f"{base_url}/authorize",
-            "token_url": f"{base_url}/oauth/token", 
-            "client_registration_url": f"{base_url}/oauth/register"
+            "flows": {
+                "authorization_code": {
+                    "authorization_url": f"{base_url}/authorize",
+                    "token_url": f"{base_url}/oauth/token"
+                }
+            },
+            "registration_url": f"{base_url}/oauth/register"
         }
     }
 
@@ -251,11 +259,18 @@ async def handle_mcp_request(request: MCPRequest):
                 result={
                     "protocolVersion": "2024-11-05",
                     "capabilities": {
-                        "tools": {"listChanged": True},
+                        "tools": {
+                            "listChanged": True
+                        },
                         "logging": {}
                     },
                     "serverInfo": {
                         "name": "tiktok-ads-mcp",
+                        "version": "0.2.0",
+                        "description": "Remote MCP server for TikTok Business API integration"
+                    },
+                    "implementation": {
+                        "name": "tiktok-ads-mcp-remote-server",
                         "version": "0.2.0"
                     }
                 }
