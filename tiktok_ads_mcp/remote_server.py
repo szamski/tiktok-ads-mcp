@@ -41,6 +41,28 @@ from .tools import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Keep-alive mechanism to prevent Render sleep
+async def keep_alive_task():
+    """Background task to keep the server alive"""
+    while True:
+        try:
+            await asyncio.sleep(600)  # Wait 10 minutes
+            logger.info("Keep-alive ping")
+        except Exception as e:
+            logger.error(f"Keep-alive error: {e}")
+
+# Lifespan context manager for startup/shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    task = asyncio.create_task(keep_alive_task())
+    logger.info("TikTok Ads MCP Server started with keep-alive")
+    yield
+    # Shutdown
+    task.cancel()
+    logger.info("TikTok Ads MCP Server shutting down")
+
 # FastAPI app
 app = FastAPI(
     title="TikTok Ads MCP Remote Server",
@@ -64,28 +86,6 @@ app.add_middleware(
 
 # Global client instance
 tiktok_client: Optional[TikTokAdsClient] = None
-
-# Keep-alive mechanism to prevent Render sleep
-async def keep_alive_task():
-    """Background task to keep the server alive"""
-    while True:
-        try:
-            await asyncio.sleep(600)  # Wait 10 minutes
-            logger.info("Keep-alive ping")
-        except Exception as e:
-            logger.error(f"Keep-alive error: {e}")
-
-# Lifespan context manager for startup/shutdown
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan manager"""
-    # Startup
-    task = asyncio.create_task(keep_alive_task())
-    logger.info("TikTok Ads MCP Server started with keep-alive")
-    yield
-    # Shutdown
-    task.cancel()
-    logger.info("TikTok Ads MCP Server shutting down")
 
 # OAuth configuration
 OAUTH_CONFIG = {
