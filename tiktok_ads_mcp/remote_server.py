@@ -207,14 +207,16 @@ def get_tiktok_client() -> TikTokAdsClient:
 # MCP Protocol Endpoints
 
 @app.get("/.well-known/mcp_server")
-async def mcp_server_info():
+async def mcp_server_info(request: Request):
     """MCP server discovery endpoint"""
+    base_url = str(request.url).replace(str(request.url.path), "").rstrip('/')
+    
     return {
         "name": "tiktok-ads-mcp",
-        "version": "0.2.0",
+        "version": "0.2.0", 
         "description": "Remote MCP server for TikTok Business API integration",
         "author": "TikTok Ads MCP Team",
-        "homepage": "https://github.com/ysntony/tiktok-ads-mcp",
+        "homepage": "https://github.com/szamski/tiktok-ads-mcp",
         "capabilities": {
             "tools": True,
             "prompts": False,
@@ -223,18 +225,19 @@ async def mcp_server_info():
         },
         "transport": {
             "type": "http",
-            "base_url": str(Request.url).rstrip('/'),
+            "base_url": base_url,
             "endpoints": {
-                "mcp": "/mcp",
-                "tools/list": "/mcp/tools/list",
-                "tools/call": "/mcp/tools/call"
+                "mcp": "/",
+                "initialize": "/",
+                "tools/list": "/",  
+                "tools/call": "/"
             }
         },
         "authentication": {
             "type": "oauth2",
-            "authorization_url": "/authorize",
-            "token_url": "/oauth/token",
-            "client_registration_url": "/oauth/register"
+            "authorization_url": f"{base_url}/authorize",
+            "token_url": f"{base_url}/oauth/token", 
+            "client_registration_url": f"{base_url}/oauth/register"
         }
     }
 
@@ -262,7 +265,13 @@ async def handle_mcp_request(request: MCPRequest):
             return MCPResponse(
                 id=request.id,
                 result={
-                    "tools": [tool.dict() for tool in MCP_TOOLS]
+                    "tools": [
+                        {
+                            "name": tool.name,
+                            "description": tool.description, 
+                            "inputSchema": tool.inputSchema
+                        } for tool in MCP_TOOLS
+                    ]
                 }
             )
         
@@ -295,7 +304,13 @@ async def list_tools():
     return {
         "jsonrpc": "2.0",
         "result": {
-            "tools": [tool.dict() for tool in MCP_TOOLS]
+            "tools": [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "inputSchema": tool.inputSchema
+                } for tool in MCP_TOOLS
+            ]
         }
     }
 
@@ -303,6 +318,22 @@ async def list_tools():
 async def call_tool(request: MCPRequest):
     """Call tool endpoint"""
     return await handle_tool_call(request)
+
+@app.post("/mcp/tools/list")
+async def list_tools_post(request: MCPRequest):
+    """List tools via POST"""
+    return MCPResponse(
+        id=request.id,
+        result={
+            "tools": [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "inputSchema": tool.inputSchema
+                } for tool in MCP_TOOLS
+            ]
+        }
+    )
 
 async def handle_tool_call(request: MCPRequest) -> MCPResponse:
     """Handle MCP tool call requests"""
