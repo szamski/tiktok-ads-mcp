@@ -267,26 +267,16 @@ def get_tiktok_client() -> TikTokAdsClient:
 
 # MCP Protocol Endpoints
 
-@app.get("/.well-known/mcp_server")
-@app.get("/.well-known/mcp")
-@app.get("/mcp/info")
-@app.get("/info")
-async def mcp_server_info(request: Request):
+@app.get("/.well-known/mcp_server")  
+async def mcp_server_info():
     """MCP server discovery endpoint"""
-    base_url = str(request.url).replace(str(request.url.path), "").rstrip('/')
-    
     return {
-        "protocolVersion": "2024-11-05",
-        "serverInfo": {
-            "name": "tiktok-ads-mcp",
-            "version": "0.2.0",
-            "description": "Remote MCP server for TikTok Business API integration"
-        },
-        "capabilities": {
-            "tools": {
-                "listChanged": True
-            }
-        }
+        "schemaVersion": "0.1.0",
+        "name": "tiktok-ads-mcp",
+        "version": "0.2.0",
+        "description": "TikTok Ads MCP Server",
+        "capabilities": ["tools"],
+        "mcpVersion": "2024-11-05"
     }
 
 @app.post("/mcp")
@@ -294,44 +284,52 @@ async def handle_mcp_request(request: MCPRequest):
     """Main MCP protocol handler"""
     try:
         if request.method == "initialize":
-            return MCPResponse(
-                id=request.id,
-                result={
+            return {
+                "jsonrpc": "2.0",
+                "id": request.id,
+                "result": {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {
-                        "tools": {
-                            "listChanged": True
-                        },
-                        "logging": {}
+                        "tools": {}
                     },
                     "serverInfo": {
                         "name": "tiktok-ads-mcp",
-                        "version": "0.2.0",
-                        "description": "Remote MCP server for TikTok Business API integration"
-                    },
-                    "implementation": {
-                        "name": "tiktok-ads-mcp-remote-server",
                         "version": "0.2.0"
                     }
                 }
-            )
+            }
         
         elif request.method == "tools/list":
-            return MCPResponse(
-                id=request.id,
-                result={
+            return {
+                "jsonrpc": "2.0", 
+                "id": request.id,
+                "result": {
                     "tools": [
                         {
-                            "name": tool.name,
-                            "description": tool.description, 
-                            "inputSchema": tool.inputSchema
-                        } for tool in MCP_TOOLS
+                            "name": "test_connection",
+                            "description": "Test MCP server connection",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {}
+                            }
+                        }
                     ]
                 }
-            )
+            }
         
         elif request.method == "tools/call":
-            return await handle_tool_call(request)
+            return {
+                "jsonrpc": "2.0",
+                "id": request.id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Hello from TikTok Ads MCP Server! Connection test successful."
+                        }
+                    ]
+                }
+            }
         
         else:
             return MCPResponse(
