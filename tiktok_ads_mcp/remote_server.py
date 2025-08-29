@@ -232,7 +232,7 @@ async def mcp_server_info():
         },
         "authentication": {
             "type": "oauth2",
-            "authorization_url": "/oauth/authorize",
+            "authorization_url": "/authorize",
             "token_url": "/oauth/token",
             "client_registration_url": "/oauth/register"
         }
@@ -396,6 +396,34 @@ async def handle_tool_call(request: MCPRequest) -> MCPResponse:
             }
         )
 
+# OAuth 2.0 Well-known endpoints
+@app.get("/.well-known/oauth-authorization-server")
+async def oauth_authorization_server():
+    """OAuth 2.0 Authorization Server Metadata (RFC 8414)"""
+    base_url = "https://tiktok-ads-mcp.onrender.com"  # Update with your actual domain
+    return {
+        "issuer": base_url,
+        "authorization_endpoint": f"{base_url}/authorize",
+        "token_endpoint": f"{base_url}/oauth/token",
+        "registration_endpoint": f"{base_url}/oauth/register",
+        "response_types_supported": ["code"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+        "scopes_supported": ["read"],
+        "code_challenge_methods_supported": ["S256"]
+    }
+
+@app.get("/.well-known/oauth-protected-resource")
+async def oauth_protected_resource():
+    """OAuth 2.0 Protected Resource Metadata (RFC 8705)"""
+    base_url = "https://tiktok-ads-mcp.onrender.com"  # Update with your actual domain
+    return {
+        "resource": base_url,
+        "authorization_servers": [base_url],
+        "scopes_supported": ["read"],
+        "bearer_methods_supported": ["header"]
+    }
+
 # OAuth 2.0 and Dynamic Client Registration endpoints
 
 @app.post("/oauth/register")
@@ -467,7 +495,7 @@ async def register_oauth_client(request: Request):
             detail=f"Client registration failed: {str(e)}"
         )
 
-@app.get("/oauth/authorize")
+@app.get("/authorize")
 async def oauth_authorize(
     client_id: str,
     redirect_uri: str,
@@ -610,7 +638,7 @@ async def root():
             "mcp_discovery": "/.well-known/mcp_server",
             "mcp_protocol": "/mcp",
             "oauth_register": "/oauth/register",
-            "oauth_authorize": "/oauth/authorize", 
+            "oauth_authorize": "/authorize", 
             "oauth_token": "/oauth/token",
             "health": "/health"
         },
