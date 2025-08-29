@@ -134,6 +134,11 @@ class MCPResponse(BaseModel):
     id: Union[str, int]
     result: Optional[Dict[str, Any]] = None
     error: Optional[Dict[str, Any]] = None
+    
+    def dict(self, **kwargs):
+        # Remove None fields from response
+        data = super().dict(**kwargs)
+        return {k: v for k, v in data.items() if v is not None}
 
 class MCPTool(BaseModel):
     name: str
@@ -146,6 +151,16 @@ class MCPToolResult(BaseModel):
 
 # Tool definitions for MCP protocol
 MCP_TOOLS = [
+    MCPTool(
+        name="test_connection",
+        description="Test MCP server connection and basic functionality",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "Test message (optional)"}
+            }
+        }
+    ),
     MCPTool(
         name="get_business_centers",
         description="Get business centers accessible by the current access token",
@@ -255,22 +270,23 @@ def get_tiktok_client() -> TikTokAdsClient:
 @app.get("/.well-known/mcp_server")
 @app.get("/.well-known/mcp")
 @app.get("/mcp/info")
+@app.get("/info")
 async def mcp_server_info(request: Request):
     """MCP server discovery endpoint"""
     base_url = str(request.url).replace(str(request.url.path), "").rstrip('/')
     
     return {
-        "name": "tiktok-ads-mcp",
-        "version": "0.2.0",
-        "description": "Remote MCP server for TikTok Business API integration",
+        "protocolVersion": "2024-11-05",
+        "serverInfo": {
+            "name": "tiktok-ads-mcp",
+            "version": "0.2.0",
+            "description": "Remote MCP server for TikTok Business API integration"
+        },
         "capabilities": {
-            "tools": True
-        },
-        "transport": {
-            "type": "http",
-            "base_url": base_url
-        },
-        "protocolVersion": "2024-11-05"
+            "tools": {
+                "listChanged": True
+            }
+        }
     }
 
 @app.post("/mcp")
@@ -403,7 +419,19 @@ async def handle_tool_call(request: MCPRequest) -> MCPResponse:
                 }
             )
         
-        client = get_tiktok_client()
+        if tool_name == "test_connection":
+            # Test tool that doesn't require TikTok API
+            test_message = arguments.get("message", "Hello from TikTok Ads MCP Server!")
+            result = {
+                "status": "success",
+                "message": test_message,
+                "server": "tiktok-ads-mcp",
+                "version": "0.2.0",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        else:
+            # Check TikTok credentials for other tools
+            client = get_tiktok_client()
         
         if tool_name == "get_business_centers":
             result = get_business_centers(
