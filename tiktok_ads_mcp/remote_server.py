@@ -232,46 +232,24 @@ def get_tiktok_client() -> TikTokAdsClient:
 # MCP Protocol Endpoints
 
 @app.get("/.well-known/mcp_server")
+@app.get("/.well-known/mcp")
+@app.get("/mcp/info")
 async def mcp_server_info(request: Request):
     """MCP server discovery endpoint"""
     base_url = str(request.url).replace(str(request.url.path), "").rstrip('/')
     
     return {
-        "protocolVersion": "2024-11-05",
-        "implementation": {
-            "name": "tiktok-ads-mcp",
-            "version": "0.2.0"
-        },
-        "serverInfo": {
-            "name": "tiktok-ads-mcp", 
-            "version": "0.2.0",
-            "description": "Remote MCP server for TikTok Business API integration",
-            "author": "TikTok Ads MCP Team",
-            "homepage": "https://github.com/szamski/tiktok-ads-mcp"
-        },
+        "name": "tiktok-ads-mcp",
+        "version": "0.2.0",
+        "description": "Remote MCP server for TikTok Business API integration",
         "capabilities": {
-            "tools": {
-                "listChanged": True
-            },
-            "logging": {}
+            "tools": True
         },
         "transport": {
             "type": "http",
-            "base_url": base_url,
-            "endpoints": {
-                "jsonrpc": "/"
-            }
+            "base_url": base_url
         },
-        "authentication": {
-            "type": "oauth2",
-            "flows": {
-                "authorization_code": {
-                    "authorization_url": f"{base_url}/authorize",
-                    "token_url": f"{base_url}/oauth/token"
-                }
-            },
-            "registration_url": f"{base_url}/oauth/register"
-        }
+        "protocolVersion": "2024-11-05"
     }
 
 @app.post("/mcp")
