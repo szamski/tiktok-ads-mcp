@@ -1,14 +1,12 @@
+# fly.toml app configuration file generated for tiktok-ads-mcp on 2025-08-29T13:15:33Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'tiktok-ads-mcp'
-primary_region = 'fra'  # Frankfurt - closest to Europe
+primary_region = 'waw'
 
 [build]
-
-[deploy]
-  release_command = 'echo "Starting TikTok Ads MCP Server"'
-
-[env]
-  HOST = "0.0.0.0"
-  PYTHON_VERSION = "3.11"
 
 [http_service]
   internal_port = 8000
@@ -18,27 +16,8 @@ primary_region = 'fra'  # Frankfurt - closest to Europe
   min_machines_running = 0
   processes = ['app']
 
-  [http_service.concurrency]
-    type = 'connections'
-    hard_limit = 25
-    soft_limit = 20
-
-  [[http_service.checks]]
-    interval = '15s'
-    timeout = '2s'
-    grace_period = '5s'
-    method = 'GET'
-    path = '/health'
-
 [[vm]]
   memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
-
-[[mounts]]
-  source = 'data'
-  destination = '/data'
-  initial_size = '1gb'
-
-[experimental]
-  auto_rollback = true
+  memory_mb = 256
