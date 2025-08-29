@@ -19,6 +19,7 @@ from authlib.oauth2 import OAuth2Error
 from authlib.oauth2.client import OAuth2Client
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -45,6 +46,7 @@ app = FastAPI(
     title="TikTok Ads MCP Remote Server",
     description="Remote MCP server for TikTok Business API integration with Claude Connector support",
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 # CORS middleware - Allow Render domain and Claude domains
@@ -73,12 +75,17 @@ async def keep_alive_task():
         except Exception as e:
             logger.error(f"Keep-alive error: {e}")
 
-# Start keep-alive task
-@app.on_event("startup")
-async def startup_event():
-    """Start background tasks on startup"""
-    asyncio.create_task(keep_alive_task())
+# Lifespan context manager for startup/shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    task = asyncio.create_task(keep_alive_task())
     logger.info("TikTok Ads MCP Server started with keep-alive")
+    yield
+    # Shutdown
+    task.cancel()
+    logger.info("TikTok Ads MCP Server shutting down")
 
 # OAuth configuration
 OAUTH_CONFIG = {
@@ -769,6 +776,7 @@ async def detailed_health_check():
 
 # Root endpoint
 @app.get("/")
+@app.head("/")
 async def root():
     """Root endpoint with server information"""
     return {
