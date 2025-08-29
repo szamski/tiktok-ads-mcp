@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: tiktok-ads-mcp-remote
+    runtime: python
+    plan: starter  # Free tier - upgrade to standard for production
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m tiktok_ads_mcp.remote_main --host 0.0.0.0 --port $PORT
+    
+    # Health check configuration
+    healthCheckPath: /health
+    
+    # Auto-deploy settings
+    autoDeploy: true
+    
+    # Environment variables (set these in Render dashboard)
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: WORKERS
+        value: "2"
+      - key: LOG_LEVEL
+        value: "info"
+      # TikTok API credentials - set these as secrets in Render dashboard
+      - key: TIKTOK_APP_ID
+        sync: false  # This will be set manually in Render dashboard
+      - key: TIKTOK_SECRET
+        sync: false  # This will be set manually in Render dashboard  
+      - key: TIKTOK_ACCESS_TOKEN
+        sync: false  # This will be set manually in Render dashboard
+
+  # Optional: Add a PostgreSQL database for OAuth token storage
+  # Uncomment and configure if you need persistent storage
+  # - type: pserv
+  #   name: tiktok-ads-mcp-db
+  #   plan: starter
+  #   databaseName: tiktok_ads_mcp
+  #   databaseUser: tiktok_user
+  #   region: oregon
